@@ -243,11 +243,11 @@ for name, attrs in pairs {
   -- DiagnosticVirtualTextInfo = {},
   -- DiagnosticVirtualTextHint = {},
   -- DiagnosticVirtualTextOk = {},
-  -- DiagnosticFloatingError = {},
-  -- DiagnosticFloatingWarn = {},
-  -- DiagnosticFloatingInfo = {},
-  -- DiagnosticFloatingHint = {},
-  -- DiagnosticFloatingOk = {},
+  DiagnosticFloatingError = { link = 'DiagnosticError' },
+  DiagnosticFloatingWarn = { link = 'DiagnosticWarn' },
+  DiagnosticFloatingInfo = { link = 'DiagnosticInfo' },
+  DiagnosticFloatingHint = { link = 'DiagnosticHint' },
+  DiagnosticFloatingOk = { link = 'DiagnosticOk' },
   -- DiagnosticSignError = {},
   -- DiagnosticSignWarn = {},
   -- DiagnosticSignInfo = {},
@@ -259,13 +259,13 @@ for name, attrs in pairs {
 
   ---- :help lsp-highlight -----------------------------------
 
-  LspReferenceText = 'Visual',
-  LspReferenceRead = 'Visual',
-  LspReferenceWrite = 'Visual',
+  LspReferenceText = { bg = a.float },
+  LspReferenceRead = { bg = a.float },
+  LspReferenceWrite = { bg = a.float },
 
-  IlluminatedWordRead = 'Visual',
-  IlluminatedWordText = 'Visual',
-  IlluminatedWordWrite = 'Visual',
+  IlluminatedWordText = { link = 'LspReferenceText' },
+  IlluminatedWordRead = { link = 'LspReferenceRead' },
+  IlluminatedWordWrite = { link = 'LspReferenceWrite' },
   -- TODO: lsp-highlight-codelens
 
   ---- :help lsp-semantic-highlight --------------------------
