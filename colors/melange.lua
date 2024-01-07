@@ -259,10 +259,13 @@ for name, attrs in pairs {
 
   ---- :help lsp-highlight -----------------------------------
 
-  -- LspReferenceText = 'Visual',
-  -- LspReferenceRead = 'Visual',
-  -- LspReferenceWrite = 'Visual',
+  LspReferenceText = 'Visual',
+  LspReferenceRead = 'Visual',
+  LspReferenceWrite = 'Visual',
 
+  IlluminatedWordRead = 'Visual',
+  IlluminatedWordText = 'Visual',
+  IlluminatedWordWrite = 'Visual',
   -- TODO: lsp-highlight-codelens
 
   ---- :help lsp-semantic-highlight --------------------------
