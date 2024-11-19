@@ -58,6 +58,97 @@ local function get_palette(variant)
   }
 end
 
+-- Convert a hex string into a table with r, g, b values in range [0, 1]
+local function hex2rgb(color)
+  local x = tonumber(string.sub(color, 2), 16)
+  return {
+    r = bit.band(x, 0xFF0000) / 0xFF0000,
+    g = bit.band(x, 0x00FF00) / 0x00FF00,
+    b = bit.band(x, 0x0000FF) / 0x0000FF,
+  }
+end
+
+local function generate_iterm2(palette)
+  local template = {
+    [[
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>]],
+  }
+  for _, name_color in pairs {
+    { 'Background Color', palette.bg },
+    { 'Foreground Color', palette.fg },
+    { 'Cursor Color', palette.fg },
+    { 'Cursor Text Color', palette.bg },
+    { 'Bold Color', palette.dark_black },
+    { 'Selected Text Color', palette.dark_white },
+    { 'Selection Color', palette.fg },
+    { 'Ansi 0 Color', palette.black },
+    { 'Ansi 1 Color', palette.red },
+    { 'Ansi 2 Color', palette.green },
+    { 'Ansi 3 Color', palette.yellow },
+    { 'Ansi 4 Color', palette.blue },
+    { 'Ansi 5 Color', palette.magenta },
+    { 'Ansi 6 Color', palette.cyan },
+    { 'Ansi 7 Color', palette.white },
+    { 'Ansi 8 Color', palette.bright_black },
+    { 'Ansi 9 Color', palette.bright_red },
+    { 'Ansi 10 Color', palette.bright_green },
+    { 'Ansi 11 Color', palette.bright_yellow },
+    { 'Ansi 12 Color', palette.bright_blue },
+    { 'Ansi 13 Color', palette.bright_magenta },
+    { 'Ansi 14 Color', palette.bright_cyan },
+    { 'Ansi 15 Color', palette.bright_white },
+  } do
+    local dict = interpolate(
+      [[
+	<dict>
+		<key>Color Space</key>
+		<string>sRGB</string>
+		<key>Red Component</key>
+		<real>$r</real>
+		<key>Green Component</key>
+		<real>$g</real>
+		<key>Blue Component</key>
+		<real>$b</real>
+	</dict>]],
+      hex2rgb(name_color[2])
+    )
+    table.insert(template, ('\t<key>%s</key>\n%s'):format(name_color[1], dict))
+  end
+  table.insert(template, '</dict>\n</plist>\n')
+  return table.concat(template, '\n')
+end
+
+local function generate_windows_terminal_theme(variant, palette)
+  local template = [=[
+  {
+    "name": "melange $variant",
+    "tab": 
+    {
+      "background": "$bg",
+      "unfocusedBackground": null
+    },
+    "tabRow": 
+    {
+      "background": "$black",
+      "unfocusedBackground": "$black"
+    },
+    "window": 
+      {
+      "applicationTheme": "$variant"
+    }
+  }
+  ]=]
+
+  return interpolate(template, {
+    bg = palette.bg .. "FF",
+    black = palette.black .. "FF",
+    variant = variant,
+  })
+end
+
 local function build(terminals)
   for _, variant in ipairs { 'dark', 'light' } do
     local palette = get_palette(variant)
@@ -68,49 +159,85 @@ local function build(terminals)
         mkdir(dir)
       end
 
-      local fmt = interpolate(attrs.template, palette)
-      if term == 'foot' then
-        fmt = fmt:gsub('#', '')
+      if term == 'windows_terminal' then
+        local template = attrs.colorscheme_template:gsub("$variant", variant)
+        local cs_fmt = interpolate(template, palette)
+        local tm_fmt = generate_windows_terminal_theme(variant, palette)
+        fwrite(cs_fmt, string.format('%s/melange_%s_colorscheme%s', dir, variant, attrs.ext))
+        fwrite(tm_fmt, string.format('%s/melange_%s_theme%s', dir, variant, attrs.ext))
+      else
+        local fmt = interpolate(attrs.template, palette)
+        if term == 'foot' then
+          fmt = fmt:gsub('#', '')
+        end
+        fwrite(fmt, string.format('%s/melange_%s%s', dir, variant, attrs.ext))
       end
-      fwrite(fmt, string.format('%s/melange_%s%s', dir, variant, attrs.ext))
     end
 
+    fwrite(generate_iterm2(palette), string.format('%s/term/iterm2/melange_%s.itermcolors', get_plugin_dir(), variant))
     fwrite(vim.json.encode(palette), get_plugin_dir() .. string.format('/melange_%s.json', variant))
   end
 end
 
 -- stylua: ignore
 local terminals = {
-  alacritty  = { ext = '.yml' },    -- https://github.com/alacritty/alacritty/blob/master/alacritty.yml
+  alacritty  = { ext = '.toml' },    -- https://github.com/alacritty/alacritty/blob/master/alacritty.yml
   foot       = { ext = '.ini' },    -- https://codeberg.org/dnkl/foot/src/branch/master/themes
   kitty      = { ext = '.conf' },   -- https://sw.kovidgoyal.net/kitty/conf/#the-color-table
   terminator = { ext = '.config' }, -- TODO: Find docs or remove support
   wezterm    = { ext = '.toml' },   -- https://wezfurlong.org/wezterm/config/appearance.html
+  windows_terminal = { ext = '.json' }, -- https://learn.microsoft.com/en-us/windows/terminal/customize-settings/color-schemes
+                                        -- https://learn.microsoft.com/en-us/windows/terminal/customize-settings/themes
 }
 
+terminals.windows_terminal.colorscheme_template = [=[
+{
+  "background": "$bg",
+  "black": "$black",
+  "blue": "$blue",
+  "brightBlack": "$bright_black",
+  "brightBlue": "$bright_blue",
+  "brightCyan": "$bright_cyan",
+  "brightGreen": "$bright_green",
+  "brightPurple": "$bright_magenta",
+  "brightRed": "$bright_red",
+  "brightWhite": "$bright_white",
+  "brightYellow": "$bright_yellow",
+  "cursorColor": "$fg",
+  "cyan": "$cyan",
+  "foreground": "$fg",
+  "green": "$green",
+  "name": "melange $variant",
+  "purple": "$magenta",
+  "red": "$red",
+  "selectionBackground": "$dark_white",
+  "white": "$white",
+  "yellow": "$yellow"
+}
+]=]
+
 terminals.alacritty.template = [[
-colors:
-  primary:
-    foreground: '$fg'
-    background: '$bg'
-  normal:
-    black:   '$black'
-    red:     '$red'
-    green:   '$green'
-    yellow:  '$yellow'
-    blue:    '$blue'
-    magenta: '$magenta'
-    cyan:    '$cyan'
-    white:   '$white'
-  bright:
-    black:   '$bright_black'
-    red:     '$bright_red'
-    green:   '$bright_green'
-    yellow:  '$bright_yellow'
-    blue:    '$bright_blue'
-    magenta: '$bright_magenta'
-    cyan:    '$bright_cyan'
-    white:   '$bright_white'
+[colors.primary]
+foreground = "$fg"
+background = "$bg"
+[colors.normal]
+black      = "$black"
+red        = "$red"
+green      = "$green"
+yellow     = "$yellow"
+blue       = "$blue"
+magenta    = "$magenta"
+cyan       = "$cyan"
+white      = "$white"
+[colors.bright]
+black      = "$bright_black"
+red        = "$bright_red"
+green      = "$bright_green"
+yellow     = "$bright_yellow"
+blue       = "$bright_blue"
+magenta    = "$bright_magenta"
+cyan       = "$bright_cyan"
+white      = "$bright_white"
 ]]
 
 terminals.foot.template = [=[
